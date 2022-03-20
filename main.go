@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	version      string // set by ldflags
 	jst          = time.FixedZone("Asia/Tokyo", 9*60*60)
 	slackChannel = os.Getenv("SLACK_CHANNEL")
 	slackToken   = os.Getenv("SLACK_TOKEN")
@@ -54,7 +55,7 @@ func main() {
 		}
 	}()
 
-	log.Println("starting server at " + server.Addr)
+	log.Printf("starting server(%s) at %s", version, server.Addr)
 
 	<-ctx.Done()
 	stop()
