@@ -1,0 +1,35 @@
+name: deploy
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+env:
+  KO_DOCKER_REPO: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ww24
+
+jobs:
+  container_image:
+    name: Build and push container image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.18"
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
+        with:
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions"
+          service_account: "github-gar@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+      - uses: imjasonh/setup-ko@v0.4
+      - name: Set env
+        run: |
+          echo "VERSION=$(echo "$GITHUB_REF" | awk -F'/' '{print $NF}')" >> $GITHUB_ENV
+      - name: Publish container image
+        run: |
+          tag=$(echo "$VERSION" | awk -F'v' '{print $NF}')
+          ko publish --preserve-import-paths --tags "$tag" .
