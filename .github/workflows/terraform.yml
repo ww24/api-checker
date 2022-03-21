@@ -13,7 +13,7 @@ on:
       - "terraform/**"
   workflow_call:
     inputs:
-      version:
+      image_tag:
         type: string
         required: true
     secrets:
@@ -58,8 +58,8 @@ jobs:
       - name: Generate tfvars
         run: |
           echo "project=\"${{ secrets.GCP_PROJECT_ID }}\"" >> terraform.auto.tfvars
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "version=\"${{ inputs.version }}\"" >> terraform.auto.tfvars
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "image_tag=\"${{ inputs.image_tag }}\"" >> terraform.auto.tfvars
           fi
       - name: Terraform plan
         id: plan
@@ -107,8 +107,8 @@ jobs:
       - name: Generate tfvars
         run: |
           echo "project=\"${{ secrets.GCP_PROJECT_ID }}\"" >> terraform.auto.tfvars
-          if [ -n "${{ inputs.version }}" ]; then
-            echo "version=\"${{ inputs.version }}\"" >> terraform.auto.tfvars
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "image_tag=\"${{ inputs.image_tag }}\"" >> terraform.auto.tfvars
           fi
       - name: Terraform apply
         run: terraform apply -auto-approve -no-color -input=false
