@@ -56,6 +56,7 @@ resource "google_cloud_run_service" "app" {
 
       annotations = {
         "autoscaling.knative.dev/maxScale" = "1"
+        "run.googleapis.com/launch-stage"  = "BETA"
       }
 
       labels = {
