@@ -16,6 +16,11 @@ on:
       version:
         type: string
         required: true
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      GCP_PROJECT_NUMBER:
+        required: true
 
 env:
   TERRAFORM_VERSION: "~> 1.1.7"
