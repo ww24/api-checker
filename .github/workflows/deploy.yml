@@ -15,6 +15,8 @@ jobs:
     permissions:
       contents: "read"
       id-token: "write"
+    outputs:
+      image_tag: ${{ steps.publish.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
@@ -29,9 +31,10 @@ jobs:
         run: |
           echo "VERSION=$(echo "$GITHUB_REF" | awk -F'/' '{print $NF}')" >> $GITHUB_ENV
       - name: Publish container image
+        id: publish
         run: |
           tag=$(echo "$VERSION" | awk -F'v' '{print $NF}')
-          echo "IMAGE_TAG=$tag" >> $GITHUB_ENV
+          echo "::set-output name=image_tag::$tag"
           ko publish --preserve-import-paths --tags "$tag" .
 
   deploy:
@@ -42,7 +45,7 @@ jobs:
       id-token: "write"
     uses: ww24/api-checker/.github/workflows/terraform.yml@master
     with:
-      version: "$IMAGE_TAG"
+      image_tag: ${{ needs.publish_image.outputs.image_tag }}
     secrets:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
