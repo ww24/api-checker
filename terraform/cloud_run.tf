@@ -20,6 +20,8 @@ resource "google_cloud_run_service" "app" {
       service_account_name = google_service_account.app.email
 
       timeout_seconds = 30
+      # set 1 because https://cloud.google.com/run/docs/configuring/cpu#setting
+      container_concurrency = 1
       containers {
         image = local.image
 
