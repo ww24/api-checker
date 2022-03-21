@@ -41,7 +41,7 @@ resource "google_cloud_run_service" "app" {
           name = "SLACK_TOKEN"
           value_from {
             secret_key_ref {
-              name = data.google_secret_manager_secret.slack-token.id
+              name = data.google_secret_manager_secret.slack-token.secret_id
               key  = "latest"
             }
           }
