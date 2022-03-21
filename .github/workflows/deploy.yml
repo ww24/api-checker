@@ -31,10 +31,18 @@ jobs:
       - name: Publish container image
         run: |
           tag=$(echo "$VERSION" | awk -F'v' '{print $NF}')
+          echo "IMAGE_TAG=$tag" >> $GITHUB_ENV
           ko publish --preserve-import-paths --tags "$tag" .
 
   deploy:
     needs: [publish_image]
+    permissions:
+      contents: "read"
+      pull-requests: "write"
+      id-token: "write"
     uses: ww24/api-checker/.github/workflows/terraform.yml@master
     with:
-      version: "$VERSION"
+      version: "$IMAGE_TAG"
+    secrets:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
