@@ -17,17 +17,21 @@ on:
         type: string
         required: true
 
+env:
+  TERRAFORM_VERSION: "~> 1.1.7"
+
+defaults:
+  run:
+    working-directory: terraform
+
 jobs:
-  terraform:
-    name: terraform
+  plan:
+    name: plan
     runs-on: ubuntu-latest
     permissions:
       contents: "read"
       pull-requests: "write"
       id-token: "write"
-    defaults:
-      run:
-        working-directory: terraform
     steps:
       - uses: actions/checkout@v3
       - uses: "google-github-actions/auth@v0"
@@ -36,11 +40,10 @@ jobs:
           service_account: "terraform@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: "~> 1.1.7"
+          terraform_version: "$TERRAFORM_VERSION"
       - name: Terraform fmt
         id: fmt
         run: terraform fmt -check
-        continue-on-error: true
       - name: Terraform init
         id: init
         run: terraform init
@@ -55,41 +58,52 @@ jobs:
           fi
       - name: Terraform plan
         id: plan
-        run: terraform plan -no-color
+        run: terraform plan -no-color -input=false
       - name: Output plan
         uses: actions/github-script@v6
         if: github.event_name == 'pull_request'
         with:
           script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            <details><summary>Validation Output</summary>
+            const output = `- [${"${{ steps.fmt.outcome }}"=="success"?"x":" "}] Terraform Format and Style 🖌
+            - [${"${{ steps.init.outcome }}"=="success"?"x":" "}] Terraform Initialization ⚙️
+            - [${"${{ steps.validate.outcome }}"=="success"?"x":" "}] Terraform Validation 🤖
+            - [${"${{ steps.plan.outcome }}"=="success"?"x":" "}] Terraform Plan 📖
 
-            \`\`\`\n
-            ${{ steps.validate.outputs.stdout }}
-            \`\`\`
+            *Pusher: @${{ github.actor }}*`;
 
-            </details>
-
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`diff\n
-            terraform\n${{ steps.plan.outputs.stdout }}
-            \`\`\`
-
-            </details>
-
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ steps.working-directory }}\`, Workflow: \`${{ github.workflow }}\`*`;
-              
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: output
             })
+
+  apply:
+    name: apply
+    environment: production
+    if: github.event_name == 'push'
+    needs: [plan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: "google-github-actions/auth@v0"
+        with:
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions"
+          service_account: "terraform@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: "$TERRAFORM_VERSION"
+      - name: Terraform init
+        id: init
+        run: terraform init
+      - name: Generate tfvars
+        run: |
+          echo "project=\"${{ secrets.GCP_PROJECT_ID }}\"" >> terraform.auto.tfvars
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=\"${{ inputs.version }}\"" >> terraform.auto.tfvars
+          fi
       - name: Terraform apply
-        if: github.event_name == 'push'
-        run: terraform apply -no-color
+        run: terraform apply -auto-approve -no-color -input=false

@@ -9,7 +9,7 @@ env:
   KO_DOCKER_REPO: asia-northeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ww24
 
 jobs:
-  container_image:
+  publish_image:
     name: Build and push container image
     runs-on: ubuntu-latest
     permissions:
@@ -32,7 +32,9 @@ jobs:
         run: |
           tag=$(echo "$VERSION" | awk -F'v' '{print $NF}')
           ko publish --preserve-import-paths --tags "$tag" .
-      - name: Deploy new version
-        uses: ww24/api-checker/.github/workflows/terraform.yml@master
-        with:
-          version: "$VERSION"
+
+  deploy:
+    needs: [publish_image]
+    uses: ww24/api-checker/.github/workflows/terraform.yml@master
+    with:
+      version: "$VERSION"
