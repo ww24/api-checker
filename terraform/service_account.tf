@@ -44,7 +44,7 @@ data "google_iam_policy" "invoker" {
   binding {
     role = "roles/run.invoker"
     members = [
-      "serviceAccount:${google_service_account.app.email}",
+      "serviceAccount:${google_service_account.invoker.email}",
     ]
   }
 }

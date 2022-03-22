@@ -24,7 +24,7 @@ variable "image_name" {
 
 variable "image_tag" {
   type    = string
-  default = "0.0.2"
+  default = "latest"
 }
 
 variable "slack_channel" {
@@ -35,4 +35,9 @@ variable "slack_channel" {
 variable "slack_token_secret" {
   type    = string
   default = "api-checker-slack-token"
+}
+
+variable "request_body" {
+  type        = string
+  description = "base64 encoded json payload to submit from Cloud Scheduler Job"
 }
