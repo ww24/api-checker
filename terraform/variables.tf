@@ -24,7 +24,7 @@ variable "image_name" {
 
 variable "image_tag" {
   type    = string
-  default = "0.0.2"
+  default = "latest"
 }
 
 variable "slack_channel" {
