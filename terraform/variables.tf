@@ -36,3 +36,8 @@ variable "slack_token_secret" {
   type    = string
   default = "api-checker-slack-token"
 }
+
+variable "request_body" {
+  type        = string
+  description = "base64 encoded json payload to submit from Cloud Scheduler Job"
+}
