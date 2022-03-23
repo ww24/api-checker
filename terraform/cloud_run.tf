@@ -66,6 +66,7 @@ resource "google_cloud_run_service" "app" {
 
   metadata {
     annotations = {
+      "run.googleapis.com/ingress"      = "all"
       "run.googleapis.com/launch-stage" = "BETA"
     }
 
