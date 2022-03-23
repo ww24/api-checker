@@ -7,7 +7,7 @@ resource "google_cloud_scheduler_job" "trigger" {
 
   http_target {
     http_method = "POST"
-    uri         = google_cloud_run_service.app.status[0].url
+    uri         = "${google_cloud_run_service.app.status[0].url}/"
     headers = {
       content-type = "application/json"
     }
