@@ -30,6 +30,10 @@ on:
 
 env:
   TERRAFORM_VERSION: "~> 1.1.7"
+  TFVARS: |
+    project="${{ secrets.GCP_PROJECT_ID }}"
+    request_body="${{ secrets.REQUEST_BODY }}"
+    image_tag="${{ inputs.image_tag }}"
 
 defaults:
   run:
@@ -43,8 +47,6 @@ jobs:
       contents: "read"
       pull-requests: "write"
       id-token: "write"
-    outputs:
-      tfvars: ${{ steps.tfvars.outputs.content }}
     steps:
       - uses: actions/checkout@v3
       - uses: "google-github-actions/auth@v0"
@@ -64,14 +66,8 @@ jobs:
         id: validate
         run: terraform validate -no-color
       - name: Generate tfvars
-        id: tfvars
         run: |
-          echo "project=\"${{ secrets.GCP_PROJECT_ID }}\"" >> terraform.auto.tfvars
-          echo "request_body=\"${{ secrets.REQUEST_BODY }}\"" >> terraform.auto.tfvars
-          if [ -n "${{ inputs.image_tag }}" ]; then
-            echo "image_tag=\"${{ inputs.image_tag }}\"" >> terraform.auto.tfvars
-          fi
-          echo "::set-output name=content::$(<terraform.auto.tfvars)"
+          echo "$TFVARS" | awk '!/image_tag=""/' > terraform.auto.tfvars
       - name: Terraform plan
         id: plan
         run: terraform plan -no-color -input=false
@@ -115,6 +111,6 @@ jobs:
       - name: Terraform init
         run: terraform init
       - name: Generate tfvars
-        run: echo "${{ needs.plan.outputs.tfvars }}" > terraform.auto.tfvars
+        run: echo "$TFVARS" | awk '!/image_tag=""/' > terraform.auto.tfvars
       - name: Terraform apply
         run: terraform apply -auto-approve -no-color -input=false
