@@ -16,6 +16,7 @@ import (
 
 	"github.com/itchyny/gojq"
 	"github.com/slack-go/slack"
+	"go.uber.org/automaxprocs/maxprocs"
 )
 
 var (
@@ -35,6 +36,10 @@ type RequestPayload struct {
 }
 
 func main() {
+	if _, err := maxprocs.Set(maxprocs.Logger(log.New(os.Stdout, "", 0).Printf)); err != nil {
+		log.Printf("ERROR maxprocs.Set: %+v", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
