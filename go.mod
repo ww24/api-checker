@@ -11,4 +11,5 @@ require (
 require (
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/itchyny/timefmt-go v0.1.3 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
