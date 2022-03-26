@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/itchyny/gojq v0.12.7
 	github.com/slack-go/slack v0.10.2
+	go.uber.org/automaxprocs v1.4.0
 )
 
 require (
