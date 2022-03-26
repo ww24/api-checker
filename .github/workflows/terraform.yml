@@ -21,6 +21,8 @@ on:
         required: true
       GCP_PROJECT_NUMBER:
         required: true
+      REQUEST_BODY:
+        required: true
   workflow_dispatch:
     inputs:
       image_tag:
