@@ -95,7 +95,7 @@ jobs:
   apply:
     name: apply
     environment: production
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.plan.outputs.changed
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.plan.outputs.changed == 'true'
     needs: [plan]
     runs-on: ubuntu-latest
     permissions:
