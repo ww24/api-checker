@@ -17,6 +17,9 @@ import (
 	"github.com/itchyny/gojq"
 	"github.com/slack-go/slack"
 	"go.uber.org/automaxprocs/maxprocs"
+	"go.uber.org/zap"
+
+	"github.com/ww24/api-checker/internal/logger"
 )
 
 var (
@@ -36,16 +39,18 @@ type RequestPayload struct {
 }
 
 func main() {
-	if _, err := maxprocs.Set(maxprocs.Logger(log.New(os.Stdout, "", 0).Printf)); err != nil {
-		log.Printf("ERROR maxprocs.Set: %+v", err)
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	// setup logger
 	log.SetFlags(0)
-	log.SetOutput(os.Stdout)
+	if err := logger.InitializeLogger(ctx, "api-checker", version); err != nil {
+		log.Printf("ERROR logger.InitializeLogger: %+v", err)
+		return
+	}
+
+	if _, err := maxprocs.Set(maxprocs.Logger(logger.DefaultLogger.Sugar().Infof)); err != nil {
+		logger.DefaultLogger.Error("maxprocs.Set", zap.Error(err))
+	}
 
 	server := http.Server{
 		Addr:    ":8080",
@@ -56,15 +61,18 @@ func main() {
 	}
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			log.Printf("ERROR server.ListenAndServe: %s", err)
+			logger.DefaultLogger.Error("server.ListenAndServe", zap.Error(err))
 		}
 	}()
 
-	log.Printf("starting server(%s) at %s", version, server.Addr)
+	logger.DefaultLogger.Info("starting server",
+		zap.String("version", version),
+		zap.String("addr", server.Addr),
+	)
 
 	<-ctx.Done()
 	stop()
-	log.Println("shutdown (signal received)")
+	logger.DefaultLogger.Info("shutdown (signal received)")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -98,14 +106,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	query, err := gojq.Parse(request.Query)
 	if err != nil {
-		log.Printf("ERROR gojq.Parse: %s", err)
+		logger.DefaultLogger.Error("gojq.Parse", zap.Error(err))
 		http.Error(w, "failed to parse jq query", http.StatusInternalServerError)
 		return
 	}
 
 	data, err := fetch(ctx, request)
 	if err != nil {
-		log.Printf("ERROR fetch: %s", err)
+		logger.DefaultLogger.Error("fetch", zap.Error(err))
 		http.Error(w, "failed to request", http.StatusInternalServerError)
 		return
 	}
@@ -119,12 +127,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err, ok := v.(error); ok {
-			log.Printf("ERROR gojq.Next: %s", err)
+			logger.DefaultLogger.Error("gojq.Next", zap.Error(err))
 			http.Error(w, "failed to run jq query", http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("jq Result: %#v", v)
+		logger.DefaultLogger.Info("jq Result", zap.Any("result", v))
 		queryResult = v
 		if res, ok := v.(bool); ok && res {
 			result = res
@@ -132,16 +140,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Println("Result:", result)
+	logger.DefaultLogger.Info("Result", zap.Any("result", result))
 	if result && slackChannel != "" && slackToken != "" {
 		payload, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
-			log.Printf("ERROR json.MarshalIndent: %s", err)
+			logger.DefaultLogger.Error("json.MarshalIndent", zap.Error(err))
 			http.Error(w, "failed to marshal json", http.StatusInternalServerError)
 			return
 		}
 		if err := notify(ctx, slackChannel, slackToken, request.NotificationMessage, bytes.NewReader(payload)); err != nil {
-			log.Printf("ERROR notify: %s", err)
+			logger.DefaultLogger.Error("notify", zap.Error(err))
 			http.Error(w, "failed to notify", http.StatusInternalServerError)
 			return
 		}
@@ -182,7 +190,10 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 		}
 	}
 
-	log.Printf("%s %s", req.Method, req.URL.String())
+	logger.DefaultLogger.Info("fetch",
+		zap.String("method", req.Method),
+		zap.String("url", req.URL.String()),
+	)
 
 	resp, err := cli.Do(req)
 	if err != nil {
@@ -190,7 +201,7 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	log.Println("Status:", resp.Status)
+	logger.DefaultLogger.Info("fetch result", zap.String("status", resp.Status))
 
 	var data interface{}
 	contentType := resp.Header.Get("content-type")
@@ -206,7 +217,7 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("response: %s", string(data))
+		logger.DefaultLogger.Info("response", zap.String("data", string(data)))
 	}
 
 	return data, nil
