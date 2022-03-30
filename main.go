@@ -16,10 +16,18 @@ import (
 
 	"github.com/itchyny/gojq"
 	"github.com/slack-go/slack"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/automaxprocs/maxprocs"
 	"go.uber.org/zap"
 
 	"github.com/ww24/api-checker/internal/logger"
+	"github.com/ww24/api-checker/internal/tracer"
+)
+
+const (
+	serviceName     = "api-checker"
+	shutdownTimeout = 10 * time.Second
 )
 
 var (
@@ -43,7 +51,7 @@ func main() {
 	defer stop()
 
 	log.SetFlags(0)
-	if err := logger.InitializeLogger(ctx, "api-checker", version); err != nil {
+	if err := logger.InitializeLogger(ctx, serviceName, version); err != nil {
 		log.Printf("ERROR logger.InitializeLogger: %+v", err)
 		return
 	}
@@ -52,9 +60,23 @@ func main() {
 		logger.DefaultLogger.Error("maxprocs.Set", zap.Error(err))
 	}
 
+	tp, err := tracer.New(serviceName, version)
+	if err != nil {
+		logger.DefaultLogger.Error("failed to initialize tracer", zap.Error(err))
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := tp.Shutdown(ctx); err != nil {
+			logger.DefaultLogger.Error("failed to shutdown tracer", zap.Error(err))
+		}
+	}()
+
 	server := http.Server{
-		Addr:    ":8080",
-		Handler: http.HandlerFunc(handler),
+		Addr: ":8080",
+		Handler: otelhttp.NewHandler(http.HandlerFunc(handler), "server",
+			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+		),
 	}
 	if port := os.Getenv("PORT"); port != "" {
 		server.Addr = ":" + port
@@ -74,7 +96,7 @@ func main() {
 	stop()
 	logger.DefaultLogger.Info("shutdown (signal received)")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		panic(err)
@@ -83,15 +105,18 @@ func main() {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	labeler, _ := otelhttp.LabelerFromContext(ctx)
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "only POST method is supported", http.StatusMethodNotAllowed)
+		labeler.Add(attribute.Bool("error", true))
 		return
 	}
 
 	// validation
 	if !strings.HasPrefix(r.Header.Get("content-type"), "application/json") {
 		http.Error(w, "invalid content-type", http.StatusBadRequest)
+		labeler.Add(attribute.Bool("error", true))
 		return
 	}
 
@@ -101,6 +126,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	request := &RequestPayload{}
 	if err := dec.Decode(&request); err != nil {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
+		labeler.Add(attribute.Bool("error", true))
 		return
 	}
 
@@ -108,6 +134,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.DefaultLogger.Error("gojq.Parse", zap.Error(err))
 		http.Error(w, "failed to parse jq query", http.StatusInternalServerError)
+		labeler.Add(attribute.Bool("error", true))
 		return
 	}
 
@@ -115,6 +142,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.DefaultLogger.Error("fetch", zap.Error(err))
 		http.Error(w, "failed to request", http.StatusInternalServerError)
+		labeler.Add(attribute.Bool("error", true))
 		return
 	}
 
@@ -129,6 +157,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		if err, ok := v.(error); ok {
 			logger.DefaultLogger.Error("gojq.Next", zap.Error(err))
 			http.Error(w, "failed to run jq query", http.StatusInternalServerError)
+			labeler.Add(attribute.Bool("error", true))
 			return
 		}
 
@@ -146,11 +175,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.DefaultLogger.Error("json.MarshalIndent", zap.Error(err))
 			http.Error(w, "failed to marshal json", http.StatusInternalServerError)
+			labeler.Add(attribute.Bool("error", true))
 			return
 		}
 		if err := notify(ctx, slackChannel, slackToken, request.NotificationMessage, bytes.NewReader(payload)); err != nil {
 			logger.DefaultLogger.Error("notify", zap.Error(err))
 			http.Error(w, "failed to notify", http.StatusInternalServerError)
+			labeler.Add(attribute.Bool("error", true))
 			return
 		}
 	}
@@ -160,8 +191,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
-	cli := http.Client{
-		Timeout: 10 * time.Second,
+	cli := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
 	method := request.Method
@@ -224,7 +256,11 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 }
 
 func notify(ctx context.Context, channelID, token, message string, payload io.Reader) error {
-	api := slack.New(token)
+	cli := &http.Client{
+		Timeout:   10 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
+	api := slack.New(token, slack.OptionHTTPClient(cli))
 
 	if payload != nil {
 		_, err := api.UploadFileContext(ctx, slack.FileUploadParameters{
