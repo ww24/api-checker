@@ -56,19 +56,20 @@ func main() {
 		return
 	}
 
-	if _, err := maxprocs.Set(maxprocs.Logger(logger.DefaultLogger.Sugar().Infof)); err != nil {
-		logger.DefaultLogger.Error("maxprocs.Set", zap.Error(err))
+	cl := logger.DefaultLogger(ctx)
+	if _, err := maxprocs.Set(maxprocs.Logger(cl.Sugar().Infof)); err != nil {
+		cl.Error("maxprocs.Set", zap.Error(err))
 	}
 
 	tp, err := tracer.New(serviceName, version)
 	if err != nil {
-		logger.DefaultLogger.Error("failed to initialize tracer", zap.Error(err))
+		cl.Error("failed to initialize tracer", zap.Error(err))
 	}
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := tp.Shutdown(ctx); err != nil {
-			logger.DefaultLogger.Error("failed to shutdown tracer", zap.Error(err))
+			cl.Error("failed to shutdown tracer", zap.Error(err))
 		}
 	}()
 
@@ -83,18 +84,18 @@ func main() {
 	}
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			logger.DefaultLogger.Error("server.ListenAndServe", zap.Error(err))
+			cl.Error("server.ListenAndServe", zap.Error(err))
 		}
 	}()
 
-	logger.DefaultLogger.Info("starting server",
+	cl.Info("starting server",
 		zap.String("version", version),
 		zap.String("addr", server.Addr),
 	)
 
 	<-ctx.Done()
 	stop()
-	logger.DefaultLogger.Info("shutdown (signal received)")
+	cl.Info("shutdown (signal received)")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
@@ -130,9 +131,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cl := logger.DefaultLogger(ctx)
 	query, err := gojq.Parse(request.Query)
 	if err != nil {
-		logger.DefaultLogger.Error("gojq.Parse", zap.Error(err))
+		cl.Error("gojq.Parse", zap.Error(err))
 		http.Error(w, "failed to parse jq query", http.StatusInternalServerError)
 		labeler.Add(attribute.Bool("error", true))
 		return
@@ -140,7 +142,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	data, err := fetch(ctx, request)
 	if err != nil {
-		logger.DefaultLogger.Error("fetch", zap.Error(err))
+		cl.Error("fetch", zap.Error(err))
 		http.Error(w, "failed to request", http.StatusInternalServerError)
 		labeler.Add(attribute.Bool("error", true))
 		return
@@ -155,13 +157,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err, ok := v.(error); ok {
-			logger.DefaultLogger.Error("gojq.Next", zap.Error(err))
+			cl.Error("gojq.Next", zap.Error(err))
 			http.Error(w, "failed to run jq query", http.StatusInternalServerError)
 			labeler.Add(attribute.Bool("error", true))
 			return
 		}
 
-		logger.DefaultLogger.Info("jq Result", zap.Any("result", v))
+		cl.Info("jq Result", zap.Any("result", v))
 		queryResult = v
 		if res, ok := v.(bool); ok && res {
 			result = res
@@ -169,17 +171,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logger.DefaultLogger.Info("Result", zap.Any("result", result))
+	cl.Info("Result", zap.Any("result", result))
 	if result && slackChannel != "" && slackToken != "" {
 		payload, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
-			logger.DefaultLogger.Error("json.MarshalIndent", zap.Error(err))
+			cl.Error("json.MarshalIndent", zap.Error(err))
 			http.Error(w, "failed to marshal json", http.StatusInternalServerError)
 			labeler.Add(attribute.Bool("error", true))
 			return
 		}
 		if err := notify(ctx, slackChannel, slackToken, request.NotificationMessage, bytes.NewReader(payload)); err != nil {
-			logger.DefaultLogger.Error("notify", zap.Error(err))
+			cl.Error("notify", zap.Error(err))
 			http.Error(w, "failed to notify", http.StatusInternalServerError)
 			labeler.Add(attribute.Bool("error", true))
 			return
@@ -222,7 +224,8 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 		}
 	}
 
-	logger.DefaultLogger.Info("fetch",
+	cl := logger.DefaultLogger(ctx)
+	cl.Info("fetch",
 		zap.String("method", req.Method),
 		zap.String("url", req.URL.String()),
 	)
@@ -233,7 +236,7 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	logger.DefaultLogger.Info("fetch result", zap.String("status", resp.Status))
+	cl.Info("fetch result", zap.String("status", resp.Status))
 
 	var data interface{}
 	contentType := resp.Header.Get("content-type")
@@ -249,7 +252,7 @@ func fetch(ctx context.Context, request *RequestPayload) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.DefaultLogger.Info("response", zap.String("data", string(data)))
+		cl.Info("response", zap.String("data", string(data)))
 	}
 
 	return data, nil

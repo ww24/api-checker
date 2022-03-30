@@ -11,15 +11,19 @@ import (
 	"golang.org/x/xerrors"
 )
 
-var DefaultLogger *Logger
+var defaultLogger *Logger
 
 func InitializeLogger(ctx context.Context, name, version string) error {
 	logger, err := New(ctx, name, version)
 	if err != nil {
 		return err
 	}
-	DefaultLogger = logger
+	defaultLogger = logger
 	return nil
+}
+
+func DefaultLogger(ctx context.Context) *zap.Logger {
+	return defaultLogger.WithTraceFromContext(ctx)
 }
 
 type Logger struct {
