@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator"
 	"github.com/itchyny/gojq"
 	"github.com/slack-go/slack"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -73,14 +74,12 @@ func main() {
 		}
 	}()
 
-	var h http.Handler
-	h = otelhttp.NewHandler(http.HandlerFunc(handler), "server",
-		otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
-	)
-	h = tracer.XCTCMiddleware()(h)
 	server := http.Server{
-		Addr:    ":8080",
-		Handler: h,
+		Addr: ":8080",
+		Handler: otelhttp.NewHandler(http.HandlerFunc(handler), "server",
+			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+			otelhttp.WithPropagators(propagator.New()),
+		),
 	}
 	if port := os.Getenv("PORT"); port != "" {
 		server.Addr = ":" + port
