@@ -73,11 +73,14 @@ func main() {
 		}
 	}()
 
+	var h http.Handler
+	h = otelhttp.NewHandler(http.HandlerFunc(handler), "server",
+		otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+	)
+	h = tracer.XCTCMiddleware()(h)
 	server := http.Server{
-		Addr: ":8080",
-		Handler: otelhttp.NewHandler(http.HandlerFunc(handler), "server",
-			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
-		),
+		Addr:    ":8080",
+		Handler: h,
 	}
 	if port := os.Getenv("PORT"); port != "" {
 		server.Addr = ":" + port
