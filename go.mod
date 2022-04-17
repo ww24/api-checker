@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go v1.4.0
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.3.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.4.0
 	github.com/blendle/zapdriver v1.3.1
 	github.com/itchyny/gojq v0.12.7
 	github.com/slack-go/slack v0.10.2
@@ -37,9 +37,9 @@ require (
 	golang.org/x/net v0.0.0-20220325170049-de3da57026de // indirect
 	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/api v0.73.0 // indirect
+	google.golang.org/api v0.74.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220329172620-7be39ac1afc7 // indirect
+	google.golang.org/genproto v0.0.0-20220405205423-9d709892a2bf // indirect
 	google.golang.org/grpc v1.45.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
