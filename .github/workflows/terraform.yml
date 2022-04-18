@@ -57,7 +57,7 @@ jobs:
         with:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions"
           service_account: "terraform@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-      - uses: hashicorp/setup-terraform@v1
+      - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: "$TERRAFORM_VERSION"
       - name: Terraform fmt
@@ -109,7 +109,7 @@ jobs:
         with:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions"
           service_account: "terraform@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-      - uses: hashicorp/setup-terraform@v1
+      - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: "$TERRAFORM_VERSION"
       - name: Terraform init
