@@ -1,4 +1,6 @@
 resource "google_cloud_scheduler_job" "trigger" {
+  count = var.enabled ? 1 : 0
+
   name             = "${var.app_name}-trigger"
   description      = "${var.app_name} trigger"
   schedule         = "0 * * * *"
@@ -7,7 +9,7 @@ resource "google_cloud_scheduler_job" "trigger" {
 
   http_target {
     http_method = "POST"
-    uri         = "${google_cloud_run_service.app.status[0].url}/"
+    uri         = "${google_cloud_run_service.app[0].status[0].url}/"
     headers = {
       content-type = "application/json"
     }
@@ -15,7 +17,7 @@ resource "google_cloud_scheduler_job" "trigger" {
 
     oidc_token {
       service_account_email = google_service_account.invoker.email
-      audience              = google_cloud_run_service.app.status[0].url
+      audience              = google_cloud_run_service.app[0].status[0].url
     }
   }
 

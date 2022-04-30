@@ -11,6 +11,8 @@ locals {
 }
 
 resource "google_cloud_run_service" "app" {
+  count = var.enabled ? 1 : 0
+
   name     = var.app_name
   location = var.location
   project  = var.project

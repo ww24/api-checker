@@ -34,9 +34,11 @@ resource "google_service_account" "invoker" {
 }
 
 resource "google_cloud_run_service_iam_policy" "invoker" {
-  location    = google_cloud_run_service.app.location
-  project     = google_cloud_run_service.app.project
-  service     = google_cloud_run_service.app.name
+  count = var.enabled ? 1 : 0
+
+  location    = google_cloud_run_service.app[0].location
+  project     = google_cloud_run_service.app[0].project
+  service     = google_cloud_run_service.app[0].name
   policy_data = data.google_iam_policy.invoker.policy_data
 }
 
