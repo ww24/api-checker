@@ -50,3 +50,4 @@ jobs:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
       REQUEST_BODY: ${{ secrets.REQUEST_BODY }}
+      ENABLED: ${{ secrets.ENABLED }}

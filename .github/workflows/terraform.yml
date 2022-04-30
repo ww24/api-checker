@@ -23,6 +23,8 @@ on:
         required: true
       REQUEST_BODY:
         required: true
+      ENABLED:
+        required: true
   workflow_dispatch:
     inputs:
       image_tag:
@@ -35,6 +37,7 @@ env:
   TFVARS: |
     project="${{ secrets.GCP_PROJECT_ID }}"
     request_body="${{ secrets.REQUEST_BODY }}"
+    enabled="{{ secrets.enabled }}"
     image_tag="${{ inputs.image_tag }}"
 
 defaults:
