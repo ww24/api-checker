@@ -27,6 +27,11 @@ variable "image_tag" {
   default = "latest"
 }
 
+variable "enabled" {
+  type    = bool
+  default = true
+}
+
 variable "slack_channel" {
   type    = string
   default = "C038GV0J8QY"
