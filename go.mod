@@ -3,7 +3,7 @@ module github.com/ww24/api-checker
 go 1.18
 
 require (
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go v1.4.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go v1.5.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.4.0
 	github.com/blendle/zapdriver v1.3.1
 	github.com/itchyny/gojq v0.12.7
