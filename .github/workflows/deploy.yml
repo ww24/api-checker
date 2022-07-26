@@ -26,7 +26,7 @@ jobs:
         with:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions"
           service_account: "github-gar@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-      - uses: imjasonh/setup-ko@v0.4
+      - uses: imjasonh/setup-ko@v0.5
       - name: Set env
         run: |
           echo "VERSION=$(echo "$GITHUB_REF" | awk -F'/' '{print $NF}')" >> $GITHUB_ENV
